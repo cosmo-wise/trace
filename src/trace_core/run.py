@@ -134,13 +134,24 @@ class TraceRun:
         protocol = inspect_protocol(self.run_dir)
         run = protocol["run"]
         artifacts = protocol["artifacts"]
+        events = protocol["events"]
+        warnings = [event for event in events if event.get("status") == "warning"]
+        errors = [
+            event
+            for event in events
+            if event.get("status") not in {"ok", "warning", "passed", "running"}
+        ]
         return {
             "ok": not protocol["missing"],
             "missing": protocol["missing"],
             "run_id": run.get("run_id", ""),
             "status": status or run.get("status", "unknown"),
             "message": message,
-            "event_count": len(protocol["events"]),
+            "event_count": len(events),
+            "warning_count": len(warnings),
+            "error_count": len(errors),
+            "warnings": warnings[:20],
+            "errors": errors[:20],
             "artifact_count": len(artifacts),
             "artifact_bytes": sum(int(item.get("size_bytes", 0)) for item in artifacts),
             "artifacts": artifacts,

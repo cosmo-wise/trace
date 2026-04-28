@@ -94,3 +94,23 @@ def test_inspect_accepts_protocol_written_by_adapter(tmp_path: Path) -> None:
     )
 
     assert TraceRun.open(run_dir).inspect()["artifact_count"] == 1
+
+
+def test_inspect_surfaces_warning_events_without_hiding_protocol_ok(tmp_path: Path) -> None:
+    trace = TraceRun.start("warnings", tmp_path / "trace-run")
+    trace.record_event(
+        "chariot",
+        "artifact-sweep",
+        "artifact_missing",
+        "warning",
+        "missing artifact: optional-report.json",
+    )
+
+    summary = trace.finalize("passed", "done")
+
+    assert summary["ok"] is True
+    assert summary["warning_count"] == 1
+    assert summary["warnings"][0]["type"] == "artifact_missing"
+    evidence = (tmp_path / "trace-run" / "evidence.md").read_text(encoding="utf-8")
+    assert "Warnings: 1" in evidence
+    assert "missing artifact: optional-report.json" in evidence
