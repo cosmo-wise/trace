@@ -19,6 +19,8 @@ def test_trace_lifecycle_copies_file_and_finalizes(tmp_path: Path) -> None:
     assert (tmp_path / "trace-run" / artifact.trace_path / source.name).exists()
     assert summary["ok"] is True
     assert summary["artifact_count"] == 1
+    assert summary["module_health"]["relay"]["artifact_count"] == 1
+    assert (tmp_path / "trace-run" / "module-health.json").exists()
     assert (tmp_path / "trace-run" / "summary.json").exists()
     assert "Trace evidence: demo" in (tmp_path / "trace-run" / "evidence.md").read_text()
 
@@ -111,6 +113,25 @@ def test_inspect_surfaces_warning_events_without_hiding_protocol_ok(tmp_path: Pa
     assert summary["ok"] is True
     assert summary["warning_count"] == 1
     assert summary["warnings"][0]["type"] == "artifact_missing"
+    assert summary["module_health"]["chariot"]["status"] == "warning"
     evidence = (tmp_path / "trace-run" / "evidence.md").read_text(encoding="utf-8")
     assert "Warnings: 1" in evidence
+    assert "## Module Health" in evidence
     assert "missing artifact: optional-report.json" in evidence
+
+
+def test_module_health_tracks_failed_modules_and_artifacts(tmp_path: Path) -> None:
+    source = tmp_path / "report.json"
+    source.write_text('{"ok": false}\n', encoding="utf-8")
+    trace = TraceRun.start("health", tmp_path / "trace-run")
+
+    trace.record_event("trial", "run", "quality_gate", "failed", "route failed")
+    trace.copy_artifact("trial", "run", source, "json", "report")
+    summary = trace.finalize("failed", "done")
+
+    trial = summary["module_health"]["trial"]
+    assert trial["status"] == "failed"
+    assert trial["error_count"] == 1
+    assert trial["artifact_count"] == 1
+    module_health = json.loads((tmp_path / "trace-run" / "module-health.json").read_text())
+    assert module_health["trial"]["status"] == "failed"

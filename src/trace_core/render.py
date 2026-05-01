@@ -25,6 +25,18 @@ def render_evidence(summary: dict[str, Any]) -> str:
                 f"{warning.get('module', 'unknown')}/{warning.get('phase', 'unknown')} "
                 f"{warning.get('type', 'event')}: {warning.get('message', '')}"
             )
+    module_health = summary.get("module_health") or {}
+    if module_health:
+        lines.extend(["", "## Module Health", ""])
+        for module, health in sorted(module_health.items()):
+            lines.append(
+                "- "
+                f"{module}: {health.get('status', 'unknown')} "
+                f"events={health.get('event_count', 0)} "
+                f"artifacts={health.get('artifact_count', 0)} "
+                f"warnings={health.get('warning_count', 0)} "
+                f"errors={health.get('error_count', 0)}"
+            )
     lines.extend(["", "## Artifacts", ""])
     artifacts = summary.get("artifacts", [])
     if not artifacts:

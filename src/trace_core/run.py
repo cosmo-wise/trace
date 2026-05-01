@@ -127,6 +127,7 @@ class TraceRun:
         self._write_json(self.run_json, run)
         summary = self.inspect(status=status, message=message)
         self._write_json(self.run_dir / "summary.json", summary)
+        self._write_json(self.run_dir / "module-health.json", summary["module_health"])
         (self.run_dir / "evidence.md").write_text(render_evidence(summary), encoding="utf-8")
         return summary
 
@@ -141,6 +142,7 @@ class TraceRun:
             for event in events
             if event.get("status") not in {"ok", "warning", "passed", "running"}
         ]
+        module_health = build_module_health(events, artifacts)
         return {
             "ok": not protocol["missing"],
             "missing": protocol["missing"],
@@ -155,6 +157,7 @@ class TraceRun:
             "artifact_count": len(artifacts),
             "artifact_bytes": sum(int(item.get("size_bytes", 0)) for item in artifacts),
             "artifacts": artifacts,
+            "module_health": module_health,
         }
 
     @property
@@ -249,3 +252,45 @@ class TraceRun:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def build_module_health(
+    events: list[dict[str, Any]],
+    artifacts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    modules = sorted(
+        {
+            str(item.get("module") or "unknown")
+            for item in [*events, *artifacts]
+        }
+    )
+    health: dict[str, Any] = {}
+    for module in modules:
+        module_events = [event for event in events if str(event.get("module") or "unknown") == module]
+        module_artifacts = [
+            artifact
+            for artifact in artifacts
+            if str(artifact.get("module") or "unknown") == module
+        ]
+        warnings = [event for event in module_events if event.get("status") == "warning"]
+        errors = [
+            event
+            for event in module_events
+            if event.get("status") not in {"ok", "warning", "passed", "running"}
+        ]
+        if errors:
+            status = "failed"
+        elif warnings:
+            status = "warning"
+        else:
+            status = "passed"
+        health[module] = {
+            "status": status,
+            "event_count": len(module_events),
+            "artifact_count": len(module_artifacts),
+            "warning_count": len(warnings),
+            "error_count": len(errors),
+            "warnings": warnings[:10],
+            "errors": errors[:10],
+        }
+    return health
