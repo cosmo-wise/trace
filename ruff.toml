@@ -1,0 +1,14 @@
+# Managed by tools/chariot/sync_standards.py. Update the Chariot standards source instead of editing this file directly.
+
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["B", "C90", "E", "F", "I", "SIM", "UP"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["C901"]
+"test_*.py" = ["C901"]
