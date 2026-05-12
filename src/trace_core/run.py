@@ -118,7 +118,12 @@ class TraceRun:
             event_type="log_recorded",
         )
 
-    def finalize(self, status: str = "passed", message: str | None = None) -> dict[str, Any]:
+    def finalize(self, status: str = "passed", message: str | None = None, *, validate: bool = False) -> dict[str, Any]:
+        if validate:
+            from trace_core.validate import validate_run
+            report = validate_run(self.run_dir)
+            if not report["valid"]:
+                raise ValueError(f"run validation failed: {report['errors']}")
         self.record_event("trace", "run", "run_finalized", status, message or "trace run finalized")
         run = self._read_json(self.run_json)
         run.update({"status": status, "completed_at": _now()})

@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from trace_core.provenance import Provenance
+
 
 @dataclass(frozen=True)
 class TraceEvent:
@@ -22,6 +24,8 @@ class TraceEvent:
     artifact_id: str | None = None
     artifact_type: str | None = None
     role: str | None = None
+    sensitivity_level: str | None = None
+    provenance: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -43,6 +47,8 @@ class TraceEvent:
             "artifact_id": self.artifact_id,
             "artifact_type": self.artifact_type,
             "role": self.role,
+            "sensitivity_level": self.sensitivity_level,
+            "provenance": self.provenance,
         }
         payload.update({key: value for key, value in optional.items() if value is not None})
         return payload
@@ -61,6 +67,8 @@ class ArtifactEntry:
     role: str | None = None
     files: list[dict[str, Any]] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+    sensitivity_level: str | None = None
+    provenance: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -78,4 +86,8 @@ class ArtifactEntry:
             payload["sha256"] = self.sha256
         if self.role is not None:
             payload["role"] = self.role
+        if self.sensitivity_level is not None:
+            payload["sensitivity_level"] = self.sensitivity_level
+        if self.provenance is not None:
+            payload["provenance"] = self.provenance
         return payload

@@ -6,7 +6,14 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from trace_core.bundle import bundle_run
+from trace_core.exports.summary import export_summary
+from trace_core.exports.portal import export_portal_digest
+from trace_core.exports.audit import export_audit_bundle
+from trace_core.redaction.engine import RedactionEngine
+from trace_core.redaction.rules import builtin_rules
 from trace_core.run import TraceRun
+from trace_core.validate import validate_run
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,6 +39,8 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument("--run-id", required=True)
     start.add_argument("--out", required=True, type=Path)
     start.add_argument("--label")
+    start.add_argument("--module")
+    start.add_argument("--sensitivity", choices=["public", "internal", "confidential", "restricted"], default="internal")
     start.add_argument("--json", action="store_true")
 
     event = sub.add_parser("event")
@@ -64,12 +73,31 @@ def _build_parser() -> argparse.ArgumentParser:
     _run_args(final)
     final.add_argument("--status", default="passed")
     final.add_argument("--message")
+    final.add_argument("--validate", action="store_true", help="Validate run before finalizing")
 
     inspect = sub.add_parser("inspect")
     _run_args(inspect)
 
     doctor = sub.add_parser("doctor")
     doctor.add_argument("--json", action="store_true")
+
+    # New commands
+    validate_cmd = sub.add_parser("validate")
+    _run_args(validate_cmd)
+    validate_cmd.add_argument("--strict", action="store_true")
+
+    redact_cmd = sub.add_parser("redact")
+    _run_args(redact_cmd)
+    redact_cmd.add_argument("--out", type=Path, help="Output directory for redacted copy")
+    redact_cmd.add_argument("--rules", type=Path, help="Custom redaction rules YAML file")
+
+    export_sum = sub.add_parser("export-summary")
+    _run_args(export_sum)
+
+    bundle_cmd = sub.add_parser("bundle")
+    _run_args(bundle_cmd)
+    bundle_cmd.add_argument("--out", required=True, type=Path, help="Output bundle path (.tar.gz)")
+    bundle_cmd.add_argument("--redact", action="store_true", help="Redact before bundling")
     return parser
 
 
@@ -81,6 +109,18 @@ def _run_args(parser: argparse.ArgumentParser) -> None:
 def _dispatch(args: argparse.Namespace) -> dict[str, Any] | None:
     if args.command == "start":
         trace = TraceRun.start(args.run_id, args.out, args.label)
+        if args.module:
+            from trace_core.provenance import Provenance
+            from trace_core.protocol import read_json
+            prov = Provenance(module=args.module, phase="run")
+            # Update run.json with provenance via public read/write
+            run_data = read_json(trace.run_json)
+            run_data["provenance"] = prov.to_dict()
+            run_data["sensitivity_level"] = args.sensitivity
+            trace.run_json.write_text(
+                json.dumps(run_data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
         return {"ok": True, "run": str(trace.run_dir), "run_id": trace.run_id}
     if args.command == "event":
         event = TraceRun.open(args.run).record_event(
@@ -103,11 +143,37 @@ def _dispatch(args: argparse.Namespace) -> dict[str, Any] | None:
         )
         return {"ok": True, "artifact": entry.to_dict()}
     if args.command == "finalize":
-        return TraceRun.open(args.run).finalize(args.status, args.message)
+        trace = TraceRun.open(args.run)
+        if args.validate:
+            report = validate_run(args.run)
+            if not report["valid"]:
+                return {"ok": False, "errors": report["errors"], "warnings": report["warnings"]}
+        return trace.finalize(args.status, args.message)
     if args.command == "inspect":
         return TraceRun.open(args.run).inspect()
     if args.command == "doctor":
         return _doctor()
+    if args.command == "validate":
+        return validate_run(args.run, strict=getattr(args, "strict", False))
+    if args.command == "redact":
+        engine = RedactionEngine(builtin_rules())
+        if args.rules:
+            import yaml
+            custom = yaml.safe_load(args.rules.read_text(encoding="utf-8"))
+            for rule_def in custom.get("rules", []):
+                from trace_core.redaction.rules import RedactionRule
+                engine.add_rule(RedactionRule(**rule_def))
+        report = engine.redact_run(args.run, args.out)
+        return {"ok": True, "report": report.to_dict()}
+    if args.command == "export-summary":
+        return {"ok": True, "summary": export_summary(args.run)}
+    if args.command == "bundle":
+        if args.redact:
+            result = export_audit_bundle(args.run, args.out, redact=True)
+        else:
+            path = bundle_run(args.run, args.out)
+            result = {"bundle_path": str(path), "bundle_size_bytes": path.stat().st_size}
+        return {"ok": True, "bundle": result}
     return None
 
 

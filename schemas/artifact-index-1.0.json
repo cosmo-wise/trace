@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chariot.opencdx.io/schemas/artifact-index-1.0.json",
+  "title": "Artifact Index",
+  "description": "Schema for artifacts/index.json",
+  "type": "object",
+  "required": ["version", "artifacts"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact_id", "module", "phase", "artifact_type", "source_path", "trace_path", "size_bytes"],
+        "properties": {
+          "artifact_id": { "type": "string" },
+          "module": { "type": "string" },
+          "phase": { "type": "string" },
+          "artifact_type": { "type": "string" },
+          "source_path": { "type": "string" },
+          "trace_path": { "type": "string" },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "role": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "object" } },
+          "metadata": { "type": "object" },
+          "sensitivity_level": {
+            "type": "string",
+            "enum": ["public", "internal", "confidential", "restricted"]
+          }
+        }
+      }
+    }
+  }
+}

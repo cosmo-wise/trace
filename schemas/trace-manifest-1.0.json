@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chariot.opencdx.io/schemas/trace-manifest-1.0.json",
+  "title": "Trace Run Manifest",
+  "description": "Schema for trace run.json manifest files",
+  "type": "object",
+  "required": ["version", "run_id", "status", "started_at"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "run_id": { "type": "string", "pattern": "^[\\w.-]+$" },
+    "label": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["running", "passed", "failed", "error", "cancelled", "suspended"]
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "module": { "type": "string" },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "module": { "type": "string" },
+        "phase": { "type": "string" },
+        "source": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "sensitivity_level": {
+      "type": "string",
+      "enum": ["public", "internal", "confidential", "restricted"]
+    }
+  }
+}
