@@ -44,4 +44,4 @@ Producer adapters may also write the documented JSONL/manifest protocol directly
 protocol files distinguishable from a genuinely clean run; orchestration layers
 can promote warnings to hard gates when product quality requires it.
 
-Python producer copies of `trace_capture.py` are synchronized from the Chariot workspace template with `python3 tools/chariot/sync_trace_capture.py --check` or `--write`. This keeps Relay, Scout, Course, and Scribe runtime-independent from the sibling `trace` repo while avoiding helper drift.
+Python producer copies of `trace_capture.py` are synchronized from the Chariot workspace template with `python3 tools/chariot/sync/sync_trace_capture.py --check` or `--write`. This keeps Relay, Scout, Course, and Scribe runtime-independent from the sibling `trace` repo while avoiding helper drift.

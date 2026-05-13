@@ -1,4 +1,4 @@
-# Managed by tools/chariot/sync_standards.py. Update the Chariot standards source instead of editing this file directly.
+# Managed by tools/chariot/sync/sync_standards.py. Update the Chariot standards source instead of editing this file directly.
 
 target-version = "py311"
 line-length = 100
