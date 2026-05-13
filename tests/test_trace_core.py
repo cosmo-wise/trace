@@ -135,3 +135,15 @@ def test_module_health_tracks_failed_modules_and_artifacts(tmp_path: Path) -> No
     assert trial["artifact_count"] == 1
     module_health = json.loads((tmp_path / "trace-run" / "module-health.json").read_text())
     assert module_health["trial"]["status"] == "failed"
+
+
+def test_trace_accepts_carriage_as_artifact_source_module(tmp_path: Path) -> None:
+    source = tmp_path / "profile-manifest.json"
+    source.write_text('{"runtimeOwner":"carriage"}\n', encoding="utf-8")
+    trace = TraceRun.start("carriage-run", tmp_path / "trace-run")
+
+    trace.copy_artifact("carriage", "run", source, "json", "runtime-owner")
+    summary = trace.finalize("passed", "done")
+
+    assert summary["module_health"]["carriage"]["artifact_count"] == 1
+    assert summary["module_health"]["carriage"]["status"] == "passed"
