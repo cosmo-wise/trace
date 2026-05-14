@@ -20,10 +20,21 @@ trace-run/
 python cli.py start --run-id demo --out trace-run --json
 python cli.py event --run trace-run --module relay --phase query-plan --type phase_completed --message ok --json
 python cli.py artifact --run trace-run --module relay --phase query-plan --path result.json --type json --role output --json
+python cli.py log --run trace-run --module relay --phase query-plan --level warning --message "rate limit approaching" --json
 python cli.py finalize --run trace-run --status passed --json
 python cli.py inspect --run trace-run --json
 python cli.py doctor --json
+python cli.py validate --run trace-run --json
+python cli.py redact --run trace-run --out trace-run-redacted --json
+python cli.py export-summary --run trace-run --json
+python cli.py bundle --run trace-run --out trace-run-bundle --json
 ```
+
+- `log` records a warning/error message without requiring a structured artifact payload.
+- `validate` checks run directory consistency and required file presence.
+- `redact` copies the run directory stripping local path and identifier metadata.
+- `export-summary` prints a compact single-line summary suitable for orchestration.
+- `bundle` packages the run directory into a self-contained archive.
 
 ## Library
 
