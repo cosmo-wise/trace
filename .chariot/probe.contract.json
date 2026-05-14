@@ -1,0 +1,1 @@
+{"contractVersion":"1.0","contractClass":"child-repo","repoId":"trace","sourceRoots":["src","pyproject.toml","schemas"],"namedSuites":[{"id":"unit","runnerRef":"python-pytest-v1","pythonPath":"src"}],"syncBackPolicy":"checksum-only"}
