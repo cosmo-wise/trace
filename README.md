@@ -1,7 +1,7 @@
 # trace
 
 <p align="center">
-  Local-file evidence capture module for AI-driven development workflows
+  Local-file evidence capture for AI-driven development workflows
 </p>
 
 <p align="center">
@@ -16,15 +16,12 @@
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#cli">CLI</a> &middot;
-  <a href="#library">Library</a> &middot;
-  <a href="#layout">Layout</a> &middot;
-  <a href="#schemas">Schemas</a> &middot;
+  <a href="#library-usage">Library</a> &middot;
+  <a href="#how-it-works">How It Works</a> &middot;
   <a href="README-CN.md">🇨🇳 中文版</a>
 </p>
 
 ---
-
-`trace` is Chariot's local-file evidence capture module. It is intentionally named `trace` (no `chariot-` prefix) and stores a run as ordinary files, not a backend service.
 
 ## The Problem
 
@@ -34,12 +31,18 @@ Trace solves this by capturing events, artifacts, and logs as plain files in a c
 
 ## Features
 
-- **Zero-infrastructure capture** — No database, queue, or daemon. Every run is a directory of plain files.
+- **Zero-infrastructure capture** — No database, queue, or daemon. Every run is a plain-file directory.
 - **Structured timeline** — JSONL event stream with module, phase, type, and status for every step.
 - **Artifact registry** — Self-describing artifact index with content-addressable payload storage.
 - **Run redaction** — `trace redact` strips local paths and identifiers before sharing.
-- **Inspectable at rest** — Any text editor, CLI tool, or AI agent can read a completed run.
-- **Multiple verbosity levels** — From compact single-line `export-summary` to full evidence bundles.
+- **Inspectable at rest** — Read a completed run with any text editor, CLI tool, or AI agent.
+- **Multiple verbosity levels** — Compact single-line export-summary for orchestration, full evidence bundles for deep inspection.
+
+## When to Use
+
+Reach for Trace when you need lightweight, file-based run capture for multi-agent or multi-phase AI development workflows. Use after you've started producing events or artifacts that need structured collection for later review, replay, or audit.
+
+**Not for:** High-throughput production observability, real-time streaming dashboards, or long-term archival at scale. Trace is designed for local and CI-scale usage — not as a replacement for dedicated tracing backends.
 
 ## Quick Start
 
@@ -64,16 +67,21 @@ python cli.py inspect --run trace-run
 pip install trace
 ```
 
-Requires Python 3.11+. No runtime dependencies.
+Requires Python 3.11+. No runtime dependencies beyond the standard library.
 
 ## CLI
 
 ```bash
+# Lifecycle
 python cli.py start --run-id demo --out trace-run --json
+python cli.py finalize --run trace-run --status passed --json
+
+# Capture
 python cli.py event --run trace-run --module relay --phase query-plan --type phase_completed --message ok --json
 python cli.py artifact --run trace-run --module relay --phase query-plan --path result.json --type json --role output --json
 python cli.py log --run trace-run --module relay --phase query-plan --level warning --message "rate limit approaching" --json
-python cli.py finalize --run trace-run --status passed --json
+
+# Inspect & transform
 python cli.py inspect --run trace-run --json
 python cli.py doctor --json
 python cli.py validate --run trace-run --json
@@ -82,25 +90,21 @@ python cli.py export-summary --run trace-run --json
 python cli.py bundle --run trace-run --out trace-run-bundle --json
 ```
 
-- `log` records a warning/error message without requiring a structured artifact payload.
-- `validate` checks run directory consistency and required file presence.
-- `redact` copies the run directory stripping local path and identifier metadata.
-- `export-summary` prints a compact single-line summary suitable for orchestration.
-- `bundle` packages the run directory into a self-contained archive.
+| Command | Purpose |
+|---------|---------|
+| `start` | Initialize a new run directory |
+| `event` | Record a structured event on the timeline |
+| `artifact` | Copy a file into the artifact registry |
+| `log` | Record a warning or error message |
+| `finalize` | Mark the run as passed or failed |
+| `inspect` | Print a human-readable run summary |
+| `doctor` | Check Python and schema prerequisites |
+| `validate` | Check run directory consistency and completeness |
+| `redact` | Copy run directory, stripping local paths and identifiers |
+| `export-summary` | Print a compact single-line summary for orchestration |
+| `bundle` | Package the run directory into a self-contained archive |
 
-## Layout
-
-```text
-trace-run/
-  run.json
-  timeline.jsonl
-  artifacts/index.json
-  artifacts/<artifact-id>/payload/<copied files>
-  summary.json
-  evidence.md
-```
-
-## Library
+## Library Usage
 
 ```python
 from pathlib import Path
@@ -112,13 +116,27 @@ trace.copy_artifact("relay", "query-plan", Path("result.json"), "json", "output"
 trace.finalize("passed")
 ```
 
-Producer adapters may also write the documented JSONL/manifest protocol directly. Python producers should use optional import or subprocess boundaries and stay non-strict by default; Harness and Trial use TypeScript-native protocol writers validated by `trace inspect`.
+`trace inspect` and `trace finalize` summaries include `warning_count`, `error_count`, and sampled warnings/errors. This keeps a run with complete protocol files distinguishable from a genuinely clean run; orchestration layers can promote warnings to hard gates when product quality requires it.
 
-`trace inspect` and `trace finalize` summaries include `warning_count`, `error_count`, and sampled `warnings` / `errors`. This keeps a run with complete protocol files distinguishable from a genuinely clean run; orchestration layers can promote warnings to hard gates when product quality requires it.
+→ [Producer adapter guide](docs/producer-adapters.md)
 
-Python producer copies of `trace_capture.py` are synchronized from the Chariot workspace template with `python3 tools/chariot/sync/sync_trace_capture.py --check` or `--write`. This keeps Relay, Scout, Course, and Scribe runtime-independent from the sibling `trace` repo while avoiding helper drift.
+---
 
-## Architecture
+## How It Works
+
+Trace stores every run as a directory of plain files with a consistent protocol layout:
+
+```text
+trace-run/
+  run.json                # Run manifest
+  timeline.jsonl          # Chronological event stream
+  artifacts/index.json    # Self-describing artifact index
+  artifacts/<id>/payload/ # Copied artifact payloads
+  summary.json            # Aggregated run summary
+  evidence.md             # Human-readable evidence report
+```
+
+### Architecture
 
 ```
 trace/
@@ -127,13 +145,13 @@ trace/
 │   ├── trace_core.py      # Core TraceRun library
 │   ├── commands/          # CLI command implementations
 │   └── schemas/           # Protocol schema definitions
-├── schemas/               # JSON schemas (artifact-index, timeline, summary, manifest)
+├── schemas/               # Versioned JSON schemas
 └── probe/                 # Test assets
 ```
 
-## Schemas
+### Protocol Schemas
 
-Trace defines versioned JSON schemas to enforce protocol consistency:
+Trace enforces consistency with versioned JSON schemas:
 
 | Schema | Description |
 | --- | --- |
@@ -143,14 +161,18 @@ Trace defines versioned JSON schemas to enforce protocol consistency:
 | `summary-1.0.json` | Run summary |
 | `evidence-bundle-1.0.json` | Evidence bundle format |
 
-## Rationale
+### Producer Integration
 
-**Why plain files?**
+Producer adapters may write the JSONL/manifest protocol directly. Python producers should use optional import or subprocess boundaries, staying non-strict by default; Harness and Trial use TypeScript-native protocol writers validated by `trace inspect`.
+
+Python producer copies of `trace_capture.py` are synchronized from the Chariot workspace template with `python3 tools/chariot/sync/sync_trace_capture.py --check` or `--write`. This keeps Relay, Scout, Course, and Scribe runtime-independent from the sibling `trace` repo while avoiding helper drift.
+
+### Why Plain Files?
 
 - **Zero infrastructure** — No database, no queue, no daemon.
 - **Inspectable** — Any text editor or CLI can read a run.
 - **Sanitizable** — `redact` strips paths and identifiers before sharing.
-- **Replayable** — Timeline is suitable for AI-driven replay analysis and debugging.
+- **Replayable** — Timeline data suits AI-driven replay analysis.
 - **Composable** — Multiple runs can be merged, compared, or fed into audit tools.
 
 ## Contributing
