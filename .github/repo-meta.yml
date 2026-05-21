@@ -1,0 +1,14 @@
+description: >
+  Local-file trace run capture and evidence packaging for AI-driven development
+  workflows using inspectable protocol directories instead of backend services.
+topics:
+  - python
+  - cli
+  - tracing
+  - audit-trail
+  - jsonl
+  - artifact-management
+  - ai-agents
+  - automation
+  - developer-tools
+homepage: ""

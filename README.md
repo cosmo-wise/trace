@@ -1,108 +1,94 @@
-# trace
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset=".github/logo-light.svg">
+    <img alt="Trace" src=".github/logo-light.svg" width="440">
+  </picture>
 
-<p align="center">
-  Local-file evidence capture for AI-driven development workflows
-</p>
+  <p>用本地文件协议捕获事件、产物和日志，让 AI 开发链路留下可检查、可打包、可脱敏的运行证据。</p>
+</div>
 
-<p align="center">
+<div align="center">
 
-[![Version][version-shield]][version-url]
-[![License][license-shield]][license-url]
 [![Python][python-shield]][python-url]
-[![Build][build-shield]][build-url]
+[![Version][version-shield]][version-url]
+[![Protocol][protocol-shield]][protocol-url]
+[![License][license-shield]][license-url]
 
-</p>
+</div>
 
-<p align="center">
+<div align="center">
   <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#install">Install</a> &middot;
   <a href="#cli">CLI</a> &middot;
   <a href="#library-usage">Library</a> &middot;
-  <a href="#how-it-works">How It Works</a> &middot;
-  <a href="README-CN.md">🇨🇳 中文版</a>
-</p>
+  <a href="README-CN.md">README-CN</a>
+</div>
 
 ---
 
-## The Problem
+## Why Trace
 
-Observability for AI-driven development pipelines is typically either too heavy (dedicated databases, tracing backends, queues) or too ad-hoc (scattered log files, missing context, no structured retrieval). When multiple agents produce artifacts across different phases, reconstructing what happened requires stitching together inconsistent formats.
+AI 驱动开发里的运行证据常常要么太重，要么太散。接数据库和追踪后端会把本地链路变复杂，只有零散日志又很难在多模块、多阶段之间回溯到底发生了什么。
 
-Trace solves this by capturing events, artifacts, and logs as plain files in a consistent layout — inspectable with any text editor, composable across runs, and light enough for local AI agent workflows.
+Trace 选择最轻的路径：每次运行都是一个普通目录，事件写进 `timeline.jsonl`，产物登记到 `artifacts/index.json`，最终可检查、可验证、可打包、可脱敏分享。
+
+如果你需要为 agent、CLI、验证器或生成流程保留结构化运行证据，Trace 适合放在执行链路内部持续记录。
+
+如果你需要的是高吞吐在线 observability、实时 dashboard 或长期海量采集，这不是它的目标。
 
 ## Features
 
-- **Zero-infrastructure capture** — No database, queue, or daemon. Every run is a plain-file directory.
-- **Structured timeline** — JSONL event stream with module, phase, type, and status for every step.
-- **Artifact registry** — Self-describing artifact index with content-addressable payload storage.
-- **Run redaction** — `trace redact` strips local paths and identifiers before sharing.
-- **Inspectable at rest** — Read a completed run with any text editor, CLI tool, or AI agent.
-- **Multiple verbosity levels** — Compact single-line export-summary for orchestration, full evidence bundles for deep inspection.
+- **零基础设施运行捕获**：没有数据库、队列或守护进程，每个 run 都是普通文件目录。
+- **结构化时间线**：事件以 JSONL 顺序落盘，包含 module、phase、type、status 等字段。
+- **产物登记与复制**：文件和目录可复制进 artifact registry，并保留角色、哈希与大小信息。
+- **脱敏与打包**：支持 `redact` 去除本地路径和标识，再用 `bundle` 生成可分享归档。
+- **摘要与审计导出**：支持人类可读的 inspect 输出，也支持单行 summary 和审计类导出。
+- **可嵌入库接口**：CLI 和 Python 库共用同一协议，方便在本地脚本或上游模块里嵌入。
 
-## When to Use
+## When To Use
 
-Reach for Trace when you need lightweight, file-based run capture for multi-agent or multi-phase AI development workflows. Use after you've started producing events or artifacts that need structured collection for later review, replay, or audit.
-
-**Not for:** High-throughput production observability, real-time streaming dashboards, or long-term archival at scale. Trace is designed for local and CI-scale usage — not as a replacement for dedicated tracing backends.
+| 场景 | 推荐命令 |
+|------|------|
+| 初始化一个 run 目录 | `trace start` |
+| 记录事件、日志、产物 | `trace event` / `trace log` / `trace artifact` |
+| 检查或收尾一次运行 | `trace inspect` / `trace finalize` / `trace validate` |
+| 分享或归档证据 | `trace redact` / `trace bundle` |
+| 给编排层输出摘要 | `trace export-summary` |
 
 ## Quick Start
 
 ```bash
-# Start a new run
+python -m pip install -e .
 python cli.py start --run-id demo --out trace-run
-
-# Record events and artifacts
 python cli.py event --run trace-run --module relay --phase query-plan --type phase_completed --message ok
 python cli.py artifact --run trace-run --module relay --phase query-plan --path result.json --type json --role output
-
-# Finalize
 python cli.py finalize --run trace-run --status passed
-
-# Inspect
 python cli.py inspect --run trace-run
 ```
 
 ## Install
 
 ```bash
-pip install trace
+python -m pip install -e .
 ```
 
-Requires Python 3.11+. No runtime dependencies beyond the standard library.
+Requires Python 3.11+.
 
 ## CLI
 
 ```bash
-# Lifecycle
-python cli.py start --run-id demo --out trace-run --json
-python cli.py finalize --run trace-run --status passed --json
-
-# Capture
-python cli.py event --run trace-run --module relay --phase query-plan --type phase_completed --message ok --json
-python cli.py artifact --run trace-run --module relay --phase query-plan --path result.json --type json --role output --json
-python cli.py log --run trace-run --module relay --phase query-plan --level warning --message "rate limit approaching" --json
-
-# Inspect & transform
-python cli.py inspect --run trace-run --json
-python cli.py doctor --json
-python cli.py validate --run trace-run --json
-python cli.py redact --run trace-run --out trace-run-redacted --json
-python cli.py export-summary --run trace-run --json
-python cli.py bundle --run trace-run --out trace-run-bundle --json
+trace start --run-id demo --out trace-run [--label <label>] [--module <module>] [--json]
+trace event --run trace-run --module relay --phase query-plan --type phase_completed --message ok [--json]
+trace artifact --run trace-run --module relay --phase query-plan --path result.json --type json --role output [--json]
+trace log --run trace-run --module relay --phase query-plan --file logs.txt [--json]
+trace finalize --run trace-run --status passed [--validate] [--json]
+trace inspect --run trace-run [--json]
+trace validate --run trace-run [--strict] [--json]
+trace redact --run trace-run --out trace-run-redacted [--json]
+trace export-summary --run trace-run [--json]
+trace bundle --run trace-run --out trace-run.tar.gz [--redact] [--json]
 ```
-
-| Command | Purpose |
-|---------|---------|
-| `start` | Initialize a new run directory |
-| `event` | Record a structured event on the timeline |
-| `artifact` | Copy a file into the artifact registry |
-| `log` | Record a warning or error message |
-| `finalize` | Mark the run as passed or failed |
-| `inspect` | Print a human-readable run summary |
-| `doctor` | Check Python and schema prerequisites |
-| `validate` | Check run directory consistency and completeness |
-| `redact` | Copy run directory, stripping local paths and identifiers |
-| `export-summary` | Print a compact single-line summary for orchestration |
-| `bundle` | Package the run directory into a self-contained archive |
 
 ## Library Usage
 
@@ -116,79 +102,46 @@ trace.copy_artifact("relay", "query-plan", Path("result.json"), "json", "output"
 trace.finalize("passed")
 ```
 
-`trace inspect` and `trace finalize` summaries include `warning_count`, `error_count`, and sampled warnings/errors. This keeps a run with complete protocol files distinguishable from a genuinely clean run; orchestration layers can promote warnings to hard gates when product quality requires it.
-
-→ [Producer adapter guide](docs/producer-adapters.md)
-
----
-
-## How It Works
-
-Trace stores every run as a directory of plain files with a consistent protocol layout:
+## Run Layout
 
 ```text
 trace-run/
-  run.json                # Run manifest
-  timeline.jsonl          # Chronological event stream
-  artifacts/index.json    # Self-describing artifact index
-  artifacts/<id>/payload/ # Copied artifact payloads
-  summary.json            # Aggregated run summary
-  evidence.md             # Human-readable evidence report
+  run.json
+  timeline.jsonl
+  artifacts/index.json
+  artifacts/<artifact-id>/payload/
+  summary.json
+  evidence.md
 ```
 
-### Architecture
+## How It Works
 
+Trace writes run metadata, timeline events, and copied artifacts into a protocol directory with stable file names. That makes every run readable with a text editor, scriptable with normal CLI tools, and transferable without needing a service backend.
+
+`inspect` and `finalize` summaries include warning and error counts so an orchestration layer can distinguish “protocol complete” from “clean run”.
+
+## Development
+
+```bash
+python -m pip install -e .[dev]
+pytest
+ruff check .
+mypy src
 ```
-trace/
-├── cli.py                 # CLI entry point
-├── src/
-│   ├── trace_core.py      # Core TraceRun library
-│   ├── commands/          # CLI command implementations
-│   └── schemas/           # Protocol schema definitions
-├── schemas/               # Versioned JSON schemas
-└── probe/                 # Test assets
-```
-
-### Protocol Schemas
-
-Trace enforces consistency with versioned JSON schemas:
-
-| Schema | Description |
-| --- | --- |
-| `trace-manifest-1.0.json` | Top-level run manifest |
-| `timeline-1.0.json` | Timeline event entry |
-| `artifact-index-1.0.json` | Artifact registry index |
-| `summary-1.0.json` | Run summary |
-| `evidence-bundle-1.0.json` | Evidence bundle format |
-
-### Producer Integration
-
-Producer adapters may write the JSONL/manifest protocol directly. Python producers should use optional import or subprocess boundaries, staying non-strict by default; Harness and Trial use TypeScript-native protocol writers validated by `trace inspect`.
-
-Python producer copies of `trace_capture.py` are synchronized from the Chariot workspace template with `python3 tools/chariot/sync/sync_trace_capture.py --check` or `--write`. This keeps Relay, Scout, Course, and Scribe runtime-independent from the sibling `trace` repo while avoiding helper drift.
-
-### Why Plain Files?
-
-- **Zero infrastructure** — No database, no queue, no daemon.
-- **Inspectable** — Any text editor or CLI can read a run.
-- **Sanitizable** — `redact` strips paths and identifiers before sharing.
-- **Replayable** — Timeline data suits AI-driven replay analysis.
-- **Composable** — Multiple runs can be merged, compared, or fed into audit tools.
 
 ## Contributing
 
-Contributions are welcome. Open an issue or pull request on [GitHub](https://github.com/cosmo-wise/trace).
+Contributions are welcome. Open an issue or pull request on GitHub.
 
 ## License
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
 
-<!-- Badge reference links -->
-[version-shield]: https://img.shields.io/badge/version-0.1.0-blue
-[version-url]: https://github.com/cosmo-wise/trace/releases
-[license-shield]: https://img.shields.io/badge/license-Apache%202.0-blue
-[license-url]: https://github.com/cosmo-wise/trace/blob/main/LICENSE
-[python-shield]: https://img.shields.io/badge/python-%3E%3D3.11-3776AB?logo=python
-[python-url]: https://python.org
-[build-shield]: https://img.shields.io/badge/build-passing-brightgreen
-[build-url]: #
+[python-shield]: https://img.shields.io/badge/python-%3E%3D3.11-3776AB?logo=python&logoColor=white
+[python-url]: https://www.python.org/
+[version-shield]: https://img.shields.io/badge/version-0.1.0-2563EB
+[version-url]: ./pyproject.toml
+[protocol-shield]: https://img.shields.io/badge/storage-JSONL%20%2B%20artifacts-0F766E
+[protocol-url]: ./src/trace_core
+[license-shield]: https://img.shields.io/badge/license-Apache%202.0-1D4ED8
+[license-url]: ./LICENSE
