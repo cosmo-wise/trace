@@ -41,6 +41,8 @@ def _build_parser() -> argparse.ArgumentParser:
     start.add_argument("--label")
     start.add_argument("--module")
     start.add_argument("--sensitivity", choices=["public", "internal", "confidential", "restricted"], default="internal")
+    start.add_argument("--parent-run-id", help="Parent run for multi-phase correlation")
+    start.add_argument("--session-id", help="Session ID for grouping related runs")
     start.add_argument("--json", action="store_true")
 
     event = sub.add_parser("event")
@@ -108,7 +110,11 @@ def _run_args(parser: argparse.ArgumentParser) -> None:
 
 def _dispatch(args: argparse.Namespace) -> dict[str, Any] | None:
     if args.command == "start":
-        trace = TraceRun.start(args.run_id, args.out, args.label)
+        trace = TraceRun.start(
+            args.run_id, args.out, args.label,
+            parent_run_id=getattr(args, 'parent_run_id', None),
+            session_id=getattr(args, 'session_id', None),
+        )
         if args.module:
             from trace_core.provenance import Provenance
             from trace_core.protocol import read_json

@@ -52,21 +52,25 @@ class TraceRun:
         run_id: str,
         run_dir: Path,
         label: str | None = None,
+        parent_run_id: str | None = None,
+        session_id: str | None = None,
         **kwargs: Any,
     ) -> TraceRun:
         trace = cls(run_dir, **kwargs)
         trace.run_dir.mkdir(parents=True, exist_ok=True)
         trace.artifacts_dir.mkdir(parents=True, exist_ok=True)
-        trace._write_json(
-            trace.run_json,
-            {
-                "version": 1,
-                "run_id": run_id,
-                "label": label,
-                "status": "running",
-                "started_at": _now(),
-            },
-        )
+        manifest: dict[str, Any] = {
+            "version": 1,
+            "run_id": run_id,
+            "label": label,
+            "status": "running",
+            "started_at": _now(),
+        }
+        if parent_run_id:
+            manifest["parent_run_id"] = parent_run_id
+        if session_id:
+            manifest["session_id"] = session_id
+        trace._write_json(trace.run_json, manifest)
         trace._write_json(trace.index_json, {"version": 1, "artifacts": []})
         trace.record_event("trace", "run", "run_started", "ok", "trace run started")
         return trace
